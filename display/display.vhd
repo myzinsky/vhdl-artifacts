@@ -19,10 +19,17 @@ Architecture behavior of display is
     );
     end component;
 
-    signal rst          : std_logic;
+    component reset port (
+        clk:     in  std_logic;
+        reset_n: out std_logic
+    );
+    end component;
+
+    signal reset_n      : std_logic;
     signal clk          : std_logic;
-    signal i2c_scl_int  : std_logic;
-    signal i2c_sda_int  : std_logic;
+    signal clk_enable   : std_logic;
+    signal i2c_scl_int  : std_logic:= '1';
+    signal i2c_sda_int  : std_logic:= '1';
     signal start        : std_logic;
     signal ready        : std_logic;
     signal data         : std_logic_vector(7 downto 0);
@@ -34,38 +41,34 @@ begin
         clk_48 => clk
     );
 
+    rst_gen: reset port map (
+        clk     => clk,
+        reset_n => reset_n
+    );
+
+    i2c_clock_generator: entity work.i2c_clock port map (
+        clk        => clk,
+        clk_enable => clk_enable
+    );
+
     i2c_controller : entity work.i2c port map (
-        clk     => clk,
-        rst     => rst,
-        start   => start,
-        data    => data,
-        command => command,
-        addr    => "0111100", -- 0x3C
-        rw      => '0',
-        i2c_scl => i2c_scl_int,
-        i2c_sda => i2c_sda_int
+        clk        => clk,
+        reset_n    => reset_n,
+        clk_enable => clk_enable,
+        i2c_scl    => i2c_scl_int,
+        i2c_sda    => i2c_sda_int
     );
 
-    i2c_1306_init : entity work.init_1306 port map (
-        clk     => clk,
-        rst     => rst,
-        start   => start,
-        ready   => ready,
-        data    => data,
-        command => command
-    );
-
-    --i2c_scl <= not i2c_scl_int;
-    --i2c_sda <= not i2c_sda_int;
     i2c_scl <= i2c_scl_int;
     i2c_sda <= i2c_sda_int;
+
+    led_b   <= i2c_scl_int;
+    led_g   <= '1';
+    led_r   <= '1';
 
     process(clk)
     begin
         if rising_edge(clk) then
-            led_r <= i2c_sda_int;
-            led_g <= '1';
-            led_b <= '1';
         end if;
     end process;
 end behavior;

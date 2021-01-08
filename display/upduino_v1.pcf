@@ -4,4 +4,3 @@ set_io --warn-no-port led_r 41
 
 set_io --warn-no-port i2c_scl 27
 set_io --warn-no-port i2c_sda 26
-
