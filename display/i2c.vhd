@@ -19,8 +19,7 @@ Architecture behavior of i2c is
     signal sda_int      : std_logic := '1';
     signal counter      : unsigned(5 downto 0) := (others => '0');
 
-    signal command      : unsigned(7 downto 0) := (others => '0');
-    --signal addr         : std_logic_vector(6 downto 0) := "0111100";
+    signal data         : std_logic_vector(7 downto 0) := (others => '0');
     signal addr         : std_logic_vector(6 downto 0) := "0111100";
     signal pic_command  : std_logic_vector(7 downto 0) := x"40";
     signal rw           : std_logic := '0';
@@ -1083,31 +1082,11 @@ Architecture behavior of i2c is
        x"A4", -- DISPLAYALLON_RESUME
        x"A6", -- NORMALDISPLAY
        x"AF"  -- DISPLAYON
-       --x"AE", -- Display Off
-       --x"A8", -- Set Multiplex Ratio
-       --x"3F", --
-       --x"D3", --
-       --x"00", --
-       --x"40", --
-       --x"A1", --
-       --x"8C", --
-       --x"DA", --
-       --x"12", --
-       --x"81", --
-       --x"CF", --
-       --x"A4", --
-       --x"A6", --
-       --x"D5", --
-       --x"80", --
-       --x"8D", --
-       --x"14", --
-       --x"AF", --
-       --x"20", --
-       --x"00"  -- YYY
     );
 
     type state_t is (
         S_START,
+        S_TRANSMISSION,
         S_ADDR,
         S_COMMAND,
         S_INIT,
@@ -1124,6 +1103,7 @@ Architecture behavior of i2c is
     );
 
     signal state : state_t := S_START;
+    signal next_state : state_t := S_START;
     signal phase : phase_t := P_INIT;
 begin
 
@@ -1134,9 +1114,12 @@ begin
     begin
         if rising_edge(clk) then
             if reset_n = '0' then 
-                counter <= (others => '0');
-                state <= S_START;
-                phase <= P_INIT;
+                counter      <= (others => '0');
+                init_counter <= (others => '0');
+                pix_counter  <= (others => '0');
+                state        <= S_START;
+                next_state   <= S_START;
+                phase        <= P_INIT;
             elsif clk_enable = '1' then
                 case state is
                     -------------------
@@ -1183,264 +1166,99 @@ begin
                     --  SCL _____|   |_____|   |____
                     --        0    1    2    3    0
                     --
-                    when S_ADDR =>
+                    when S_TRANSMISSION =>
                         scl_int <= '0';
                         sda_int <= '1';
                         counter <= counter + 1;
                         
-                        if    counter =  0 then sda_int <= addr(6); -- Bit 0
-                        elsif counter =  1 then sda_int <= addr(6); scl_int <= '1';
-                        elsif counter =  2 then sda_int <= addr(6); scl_int <= '1';
-                        elsif counter =  3 then sda_int <= addr(6); 
-                        elsif counter =  4 then sda_int <= addr(5); -- Bit 1
-                        elsif counter =  5 then sda_int <= addr(5); scl_int <= '1';
-                        elsif counter =  6 then sda_int <= addr(5); scl_int <= '1';
-                        elsif counter =  7 then sda_int <= addr(5); 
-                        elsif counter =  8 then sda_int <= addr(4); -- Bit 2
-                        elsif counter =  9 then sda_int <= addr(4); scl_int <= '1';
-                        elsif counter = 10 then sda_int <= addr(4); scl_int <= '1';
-                        elsif counter = 11 then sda_int <= addr(4); 
-                        elsif counter = 12 then sda_int <= addr(3); -- Bit 4
-                        elsif counter = 13 then sda_int <= addr(3); scl_int <= '1';
-                        elsif counter = 14 then sda_int <= addr(3); scl_int <= '1';
-                        elsif counter = 15 then sda_int <= addr(3); 
-                        elsif counter = 16 then sda_int <= addr(2); -- Bit 5
-                        elsif counter = 17 then sda_int <= addr(2); scl_int <= '1';
-                        elsif counter = 18 then sda_int <= addr(2); scl_int <= '1';
-                        elsif counter = 19 then sda_int <= addr(2); 
-                        elsif counter = 20 then sda_int <= addr(1); -- Bit 6
-                        elsif counter = 21 then sda_int <= addr(1); scl_int <= '1';
-                        elsif counter = 22 then sda_int <= addr(1); scl_int <= '1';
-                        elsif counter = 23 then sda_int <= addr(1); 
-                        elsif counter = 24 then sda_int <= addr(0); -- Bit 6
-                        elsif counter = 25 then sda_int <= addr(0); scl_int <= '1';
-                        elsif counter = 26 then sda_int <= addr(0); scl_int <= '1';
-                        elsif counter = 27 then sda_int <= addr(0); 
-                        elsif counter = 28 then sda_int <= '0';     -- Bit 7 WRITE
-                        elsif counter = 29 then sda_int <= '0';     scl_int <= '1';
-                        elsif counter = 30 then sda_int <= '0';     scl_int <= '1';
-                        elsif counter = 31 then sda_int <= '0';     
+                        if    counter =  0 then sda_int <= data(7); -- Bit 0
+                        elsif counter =  1 then sda_int <= data(7); scl_int <= '1';
+                        elsif counter =  2 then sda_int <= data(7); scl_int <= '1';
+                        elsif counter =  3 then sda_int <= data(7); 
+                        elsif counter =  4 then sda_int <= data(6); -- Bit 1
+                        elsif counter =  5 then sda_int <= data(6); scl_int <= '1';
+                        elsif counter =  6 then sda_int <= data(6); scl_int <= '1';
+                        elsif counter =  7 then sda_int <= data(6); 
+                        elsif counter =  8 then sda_int <= data(5); -- Bit 2
+                        elsif counter =  9 then sda_int <= data(5); scl_int <= '1';
+                        elsif counter = 10 then sda_int <= data(5); scl_int <= '1';
+                        elsif counter = 11 then sda_int <= data(5); 
+                        elsif counter = 12 then sda_int <= data(4); -- Bit 4
+                        elsif counter = 13 then sda_int <= data(4); scl_int <= '1';
+                        elsif counter = 14 then sda_int <= data(4); scl_int <= '1';
+                        elsif counter = 15 then sda_int <= data(4); 
+                        elsif counter = 16 then sda_int <= data(3); -- Bit 5
+                        elsif counter = 17 then sda_int <= data(3); scl_int <= '1';
+                        elsif counter = 18 then sda_int <= data(3); scl_int <= '1';
+                        elsif counter = 19 then sda_int <= data(3); 
+                        elsif counter = 20 then sda_int <= data(2); -- Bit 6
+                        elsif counter = 21 then sda_int <= data(2); scl_int <= '1';
+                        elsif counter = 22 then sda_int <= data(2); scl_int <= '1';
+                        elsif counter = 23 then sda_int <= data(2); 
+                        elsif counter = 24 then sda_int <= data(1); -- Bit 6
+                        elsif counter = 25 then sda_int <= data(1); scl_int <= '1';
+                        elsif counter = 26 then sda_int <= data(1); scl_int <= '1';
+                        elsif counter = 27 then sda_int <= data(1); 
+                        elsif counter = 28 then sda_int <= data(0); -- Bit 7 WRITE
+                        elsif counter = 29 then sda_int <= data(0); scl_int <= '1';
+                        elsif counter = 30 then sda_int <= data(0); scl_int <= '1';
+                        elsif counter = 31 then sda_int <= data(0); 
                         elsif counter = 32 then sda_int <= 'Z';     -- Bit 8 ACK
                         elsif counter = 33 then sda_int <= 'Z';     scl_int <= '1';
                         elsif counter = 34 then sda_int <= 'Z';     scl_int <= '1';
                         elsif counter = 35 then sda_int <= 'Z';     
                         elsif counter = 36 then sda_int <= '0';     -- PAUSE
                         elsif counter = 37 then sda_int <= '0';     
-                            if phase = P_INIT then                        
-                                state <= S_COMMAND;
-                            else -- P_PIC
-                                state <= S_PIC_COMMAND; 
-                            end if;
-                              counter <= (others => '0');
+                            state   <= next_state;
+                            counter <= (others => '0');
                         end if;
-                            
+                    -------------------
+                    when S_ADDR =>
+                        data(7 downto 1) <= addr;
+                        data(0) <= '0'; -- Write
+
+                        if phase = P_INIT then
+                            next_state <= S_COMMAND;
+                        else -- P_PIC
+                            next_state <= S_PIC_COMMAND;
+                        end if;
+                        state <= S_TRANSMISSION;
                     -------------------
                     when S_COMMAND =>
-                        scl_int <= '0';
-                        sda_int <= '1';
-                        counter <= counter + 1;
-
-                        --if    counter =  0 then sda_int <= '1'; -- Bit 0
-                        --elsif counter =  1 then sda_int <= '1'; scl_int <= '1';
-                        --elsif counter =  2 then sda_int <= '1'; scl_int <= '1';
-                        --elsif counter =  3 then sda_int <= '1'; 
-                        if    counter =  0 then sda_int <= '0'; -- Bit 0
-                        elsif counter =  1 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter =  2 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter =  3 then sda_int <= '0'; 
-                        elsif counter =  4 then sda_int <= '0'; -- Bit 1
-                        elsif counter =  5 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter =  6 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter =  7 then sda_int <= '0'; 
-                        elsif counter =  8 then sda_int <= '0'; -- Bit 2
-                        elsif counter =  9 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 10 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 11 then sda_int <= '0'; 
-                        elsif counter = 12 then sda_int <= '0'; -- Bit 4
-                        elsif counter = 13 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 14 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 15 then sda_int <= '0'; 
-                        elsif counter = 16 then sda_int <= '0'; -- Bit 5
-                        elsif counter = 17 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 18 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 19 then sda_int <= '0'; 
-                        elsif counter = 20 then sda_int <= '0'; -- Bit 6
-                        elsif counter = 21 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 22 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 23 then sda_int <= '0'; 
-                        elsif counter = 24 then sda_int <= '0'; -- Bit 6
-                        elsif counter = 25 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 26 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 27 then sda_int <= '0'; 
-                        elsif counter = 28 then sda_int <= '0'; -- Bit 7 WRITE
-                        elsif counter = 29 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 30 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 31 then sda_int <= '0'; 
-                        elsif counter = 32 then sda_int <= 'Z'; -- Bit 8 ACK
-                        elsif counter = 33 then sda_int <= 'Z'; scl_int <= '1';
-                        elsif counter = 34 then sda_int <= 'Z'; scl_int <= '1';
-                        elsif counter = 35 then sda_int <= 'Z'; 
-                        elsif counter = 36 then sda_int <= '0'; -- PAUSE
-                        elsif counter = 37 then sda_int <= '0'; 
-                              state   <= S_INIT;
-                              counter <= (others => '0');
-                        end if;
+                        data       <= "00000000";
+                        next_state <= S_INIT;
+                        state      <= S_TRANSMISSION;
                     -------------------
                     when S_INIT => 
-                        scl_int      <= '0';
-                        sda_int      <= '1';
-                        counter      <= counter + 1;
-
-                        if    counter =  0 then sda_int <= init_sequence(to_integer(init_counter))(7); -- Bit 0
-                        elsif counter =  1 then sda_int <= init_sequence(to_integer(init_counter))(7); scl_int <= '1';
-                        elsif counter =  2 then sda_int <= init_sequence(to_integer(init_counter))(7); scl_int <= '1';
-                        elsif counter =  3 then sda_int <= init_sequence(to_integer(init_counter))(7); 
-                        elsif counter =  4 then sda_int <= init_sequence(to_integer(init_counter))(6); -- Bit 1
-                        elsif counter =  5 then sda_int <= init_sequence(to_integer(init_counter))(6); scl_int <= '1';
-                        elsif counter =  6 then sda_int <= init_sequence(to_integer(init_counter))(6); scl_int <= '1';
-                        elsif counter =  7 then sda_int <= init_sequence(to_integer(init_counter))(6); 
-                        elsif counter =  8 then sda_int <= init_sequence(to_integer(init_counter))(5); -- Bit 2
-                        elsif counter =  9 then sda_int <= init_sequence(to_integer(init_counter))(5); scl_int <= '1';
-                        elsif counter = 10 then sda_int <= init_sequence(to_integer(init_counter))(5); scl_int <= '1';
-                        elsif counter = 11 then sda_int <= init_sequence(to_integer(init_counter))(5); 
-                        elsif counter = 12 then sda_int <= init_sequence(to_integer(init_counter))(4); -- Bit 4
-                        elsif counter = 13 then sda_int <= init_sequence(to_integer(init_counter))(4); scl_int <= '1';
-                        elsif counter = 14 then sda_int <= init_sequence(to_integer(init_counter))(4); scl_int <= '1';
-                        elsif counter = 15 then sda_int <= init_sequence(to_integer(init_counter))(4); 
-                        elsif counter = 16 then sda_int <= init_sequence(to_integer(init_counter))(3); -- Bit 5
-                        elsif counter = 17 then sda_int <= init_sequence(to_integer(init_counter))(3); scl_int <= '1';
-                        elsif counter = 18 then sda_int <= init_sequence(to_integer(init_counter))(3); scl_int <= '1';
-                        elsif counter = 19 then sda_int <= init_sequence(to_integer(init_counter))(3); 
-                        elsif counter = 20 then sda_int <= init_sequence(to_integer(init_counter))(2); -- Bit 6
-                        elsif counter = 21 then sda_int <= init_sequence(to_integer(init_counter))(2); scl_int <= '1';
-                        elsif counter = 22 then sda_int <= init_sequence(to_integer(init_counter))(2); scl_int <= '1';
-                        elsif counter = 23 then sda_int <= init_sequence(to_integer(init_counter))(2); 
-                        elsif counter = 24 then sda_int <= init_sequence(to_integer(init_counter))(1); -- Bit 6
-                        elsif counter = 25 then sda_int <= init_sequence(to_integer(init_counter))(1); scl_int <= '1';
-                        elsif counter = 26 then sda_int <= init_sequence(to_integer(init_counter))(1); scl_int <= '1';
-                        elsif counter = 27 then sda_int <= init_sequence(to_integer(init_counter))(1); 
-                        elsif counter = 28 then sda_int <= init_sequence(to_integer(init_counter))(0); -- Bit 7 WRITE
-                        elsif counter = 29 then sda_int <= init_sequence(to_integer(init_counter))(0); scl_int <= '1';
-                        elsif counter = 30 then sda_int <= init_sequence(to_integer(init_counter))(0); scl_int <= '1';
-                        elsif counter = 31 then sda_int <= init_sequence(to_integer(init_counter))(0); 
-                        elsif counter = 32 then sda_int <= 'Z';                                        -- Bit 8 ACK
-                        elsif counter = 33 then sda_int <= 'Z';                                        scl_int <= '1';
-                        elsif counter = 34 then sda_int <= 'Z';                                        scl_int <= '1';
-                        elsif counter = 35 then sda_int <= 'Z';                                        
-                        elsif counter = 36 then sda_int <= '0';                                        -- PAUSE
-                        elsif counter = 37 then sda_int <= '0';                                        
-                            counter <= (others => '0');
-                            if init_counter < 24 then
-                                state   <= S_STOP;
-                                state   <= S_INIT;
-                                init_counter <= init_counter + 1;
-                            else
-                                phase <= P_PIC; 
-                                state <= S_STOP;
-                                init_counter <= (others => '0');
-                            end if;
+                        data <= init_sequence(to_integer(init_counter));
+                        if init_counter < 24 then
+                            next_state   <= S_INIT;
+                            init_counter <= init_counter + 1;
+                        else
+                            phase        <= P_PIC; 
+                            next_state   <= S_STOP;
+                            init_counter <= (others => '0');
                         end if;
+                        state <= S_TRANSMISSION;
                     -------------------
                     when S_PIC_COMMAND =>
-                        scl_int <= '0';
-                        sda_int <= '1';
-                        counter <= counter + 1;
-                        if    counter =  0 then sda_int <= '1'; -- Bit 0
-                        elsif counter =  1 then sda_int <= '1'; scl_int <= '1';
-                        elsif counter =  2 then sda_int <= '1'; scl_int <= '1';
-                        elsif counter =  3 then sda_int <= '1'; 
-                        elsif counter =  4 then sda_int <= '1'; -- Bit 1
-                        elsif counter =  5 then sda_int <= '1'; scl_int <= '1';
-                        elsif counter =  6 then sda_int <= '1'; scl_int <= '1';
-                        elsif counter =  7 then sda_int <= '1'; 
-                        elsif counter =  8 then sda_int <= '0'; -- Bit 2
-                        elsif counter =  9 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 10 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 11 then sda_int <= '0'; 
-                        elsif counter = 12 then sda_int <= '0'; -- Bit 4
-                        elsif counter = 13 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 14 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 15 then sda_int <= '0'; 
-                        elsif counter = 16 then sda_int <= '0'; -- Bit 5
-                        elsif counter = 17 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 18 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 19 then sda_int <= '0'; 
-                        elsif counter = 20 then sda_int <= '0'; -- Bit 6
-                        elsif counter = 21 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 22 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 23 then sda_int <= '0'; 
-                        elsif counter = 24 then sda_int <= '0'; -- Bit 6
-                        elsif counter = 25 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 26 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 27 then sda_int <= '0'; 
-                        elsif counter = 28 then sda_int <= '0'; -- Bit 7 WRITE
-                        elsif counter = 29 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 30 then sda_int <= '0'; scl_int <= '1';
-                        elsif counter = 31 then sda_int <= '0'; 
-                        elsif counter = 32 then sda_int <= 'Z'; -- Bit 8 ACK
-                        elsif counter = 33 then sda_int <= 'Z'; scl_int <= '1';
-                        elsif counter = 34 then sda_int <= 'Z'; scl_int <= '1';
-                        elsif counter = 35 then sda_int <= 'Z'; 
-                        elsif counter = 36 then sda_int <= '0'; -- PAUSE
-                        elsif counter = 37 then sda_int <= '0'; 
-                              state   <= S_PIC;
-                              counter <= (others => '0');
-                        end if;
+                        data       <= "11000000"; -- TODO FIXME HERE IS A BUG! it only works as the following:
+                        data(0) <= '0';
+                        next_state <= S_PIC;
+                        state      <= S_TRANSMISSION;
                     -------------------
                     when S_PIC => 
-                        scl_int      <= '0';
-                        sda_int      <= '1';
-                        counter      <= counter + 1;
-
-                        if    counter =  0 then sda_int <= picture(to_integer(pix_counter))(7); -- Bit 0
-                        elsif counter =  1 then sda_int <= picture(to_integer(pix_counter))(7); scl_int <= '1';
-                        elsif counter =  2 then sda_int <= picture(to_integer(pix_counter))(7); scl_int <= '1';
-                        elsif counter =  3 then sda_int <= picture(to_integer(pix_counter))(7); 
-                        elsif counter =  4 then sda_int <= picture(to_integer(pix_counter))(6); -- Bit 1
-                        elsif counter =  5 then sda_int <= picture(to_integer(pix_counter))(6); scl_int <= '1';
-                        elsif counter =  6 then sda_int <= picture(to_integer(pix_counter))(6); scl_int <= '1';
-                        elsif counter =  7 then sda_int <= picture(to_integer(pix_counter))(6); 
-                        elsif counter =  8 then sda_int <= picture(to_integer(pix_counter))(5); -- Bit 2
-                        elsif counter =  9 then sda_int <= picture(to_integer(pix_counter))(5); scl_int <= '1';
-                        elsif counter = 10 then sda_int <= picture(to_integer(pix_counter))(5); scl_int <= '1';
-                        elsif counter = 11 then sda_int <= picture(to_integer(pix_counter))(5); 
-                        elsif counter = 12 then sda_int <= picture(to_integer(pix_counter))(4); -- Bit 4
-                        elsif counter = 13 then sda_int <= picture(to_integer(pix_counter))(4); scl_int <= '1';
-                        elsif counter = 14 then sda_int <= picture(to_integer(pix_counter))(4); scl_int <= '1';
-                        elsif counter = 15 then sda_int <= picture(to_integer(pix_counter))(4); 
-                        elsif counter = 16 then sda_int <= picture(to_integer(pix_counter))(3); -- Bit 5
-                        elsif counter = 17 then sda_int <= picture(to_integer(pix_counter))(3); scl_int <= '1';
-                        elsif counter = 18 then sda_int <= picture(to_integer(pix_counter))(3); scl_int <= '1';
-                        elsif counter = 19 then sda_int <= picture(to_integer(pix_counter))(3); 
-                        elsif counter = 20 then sda_int <= picture(to_integer(pix_counter))(2); -- Bit 6
-                        elsif counter = 21 then sda_int <= picture(to_integer(pix_counter))(2); scl_int <= '1';
-                        elsif counter = 22 then sda_int <= picture(to_integer(pix_counter))(2); scl_int <= '1';
-                        elsif counter = 23 then sda_int <= picture(to_integer(pix_counter))(2); 
-                        elsif counter = 24 then sda_int <= picture(to_integer(pix_counter))(1); -- Bit 6
-                        elsif counter = 25 then sda_int <= picture(to_integer(pix_counter))(1); scl_int <= '1';
-                        elsif counter = 26 then sda_int <= picture(to_integer(pix_counter))(1); scl_int <= '1';
-                        elsif counter = 27 then sda_int <= picture(to_integer(pix_counter))(1); 
-                        elsif counter = 28 then sda_int <= picture(to_integer(pix_counter))(0); -- Bit 7 WRITE
-                        elsif counter = 29 then sda_int <= picture(to_integer(pix_counter))(0); scl_int <= '1';
-                        elsif counter = 30 then sda_int <= picture(to_integer(pix_counter))(0); scl_int <= '1';
-                        elsif counter = 31 then sda_int <= picture(to_integer(pix_counter))(0); 
-                        elsif counter = 32 then sda_int <= 'Z';                                  -- Bit 8 ACK
-                        elsif counter = 33 then sda_int <= 'Z';                                  scl_int <= '1';
-                        elsif counter = 34 then sda_int <= 'Z';                                  scl_int <= '1';
-                        elsif counter = 35 then sda_int <= 'Z';                                  
-                        elsif counter = 36 then sda_int <= '0';                                  -- PAUSE
-                        elsif counter = 37 then sda_int <= '0';                                  
-                            counter <= (others => '0');
-                            if pix_counter < 1025 then
-                                phase       <= P_PIC;
-                                state       <= S_STOP;
-                                pix_counter <= pix_counter + 1;
-                            else
-                                phase       <= P_END;
-                                state       <= S_STOP;
-                                pix_counter <= (others => '0');
-                            end if;
+                        data <= picture(to_integer(pix_counter));
+                        if pix_counter < 1023 then
+                            phase       <= P_PIC;
+                            next_state  <= S_STOP;
+                            pix_counter <= pix_counter + 1;
+                        else
+                            phase       <= P_END;
+                            next_state  <= S_STOP;
+                            pix_counter <= (others => '0');
                         end if;
+                        state <= S_TRANSMISSION;
                     when others =>
                         state <= S_IDLE;
                end case;
@@ -1448,4 +1266,3 @@ begin
         end if;
     end process;
 end behavior;
-
