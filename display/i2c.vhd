@@ -221,12 +221,11 @@ begin
                     -------------------
                     when S_PIC_COMMAND =>
                         data       <= "11000000"; -- TODO FIXME HERE IS A BUG! it only works as the following:
-                        data(0) <= '0';
+                        data(0)    <= '0';
                         next_state <= S_PIC;
                         state      <= S_TRANSMISSION;
                     -------------------
                     when S_PIC => 
-                        --data <= picture(to_integer(pix_counter));
                         data <= pixel;
                         if pix_counter < 1023 then
                             phase       <= P_PIC;

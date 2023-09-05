@@ -1,7 +1,10 @@
 FILE=display
-FILE2=i2c
+FILE3=i2c
+FILE2=i2c_picture
 FILE4=i2c_clock
 TARGET=synth_ice40
+OPT=opt
+FSM=fsm -nomap; fsm_export -o $(FILE).kiss2;
 
 .DEFAULT_GOAL := all
 
@@ -10,16 +13,21 @@ init:
 	ghdl -e $(FILE4)
 	ghdl -a $(FILE2).vhd
 	ghdl -e $(FILE2)
-	ghdl -a $(FILE2)tb.vhd
-	ghdl -e $(FILE2)tb
+	ghdl -a $(FILE3).vhd
+	ghdl -e $(FILE3)
+	ghdl -a $(FILE3)tb.vhd
+	ghdl -e $(FILE3)tb
 	ghdl -a $(FILE).vhd
 	ghdl -e $(FILE)
 
 simulation: init
 	ghdl -r $(FILE2)tb --wave=$(FILE2).ghw
 
+extract_fsm: init
+	yosys '-mghdl' -p 'ghdl $(FILE); read_verilog reset.v clock.v; proc; opt; fsm -nomap; fsm_export -o $(FILE).kiss2'
+
 synthesis: $(FILE).vhd init
-	yosys '-mghdl' -p 'ghdl $(FILE); read_verilog reset.v clock.v; $(OPT); $(TARGET); write_json $(FILE).json; show'
+	yosys '-mghdl' -p 'ghdl $(FILE); read_verilog reset.v clock.v; $(TARGET); $(OPT); write_json $(FILE).json;'
 
 visualize:
 	sed -i -e 's/inout/output/g' $(FILE).json

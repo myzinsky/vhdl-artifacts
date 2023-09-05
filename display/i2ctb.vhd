@@ -53,7 +53,7 @@ begin
         reset_n <= '0';
         wait for 100 ns;
         reset_n <= '1';
-        wait for 10 ms;
+        wait for 1 ms;
         finished <= '1';
         wait;
     end process STIMULUS;
